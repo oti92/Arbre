@@ -80,7 +80,7 @@
         const marginLeft = 140;
         
         // Hauteur initiale pour accueillir les arbres
-        let initialHeight = 800;
+        let initialHeight = 2200;
 
         // Créer le conteneur SVG
         const svg = d3.select("#treeContainer")
@@ -141,11 +141,40 @@
             let maxX = -Infinity;
             
             // Traiter chaque racine séparément
+            let verticalOffset = 0; // Commencer à 0 pour la première racine
+
+            // Premier passage pour calculer la taille de chaque arbre
+            const treeSizes = [];
             roots.forEach((root, index) => {
-                // Position vertical de départ pour chaque racine
-                const verticalOffset = index * 300; // Espacement entre les arbres
-                
                 // Appliquer la disposition d'arbre
+                tree(root);
+                
+                // Calculer min et max pour cet arbre
+                let treeMinX = Infinity;
+                let treeMaxX = -Infinity;
+                
+                root.each(node => {
+                    if (node.x < treeMinX) treeMinX = node.x;
+                    if (node.x > treeMaxX) treeMaxX = node.x;
+                });
+                
+                // Stocker la taille de l'arbre et réinitialiser les positions
+                treeSizes.push({
+                    height: treeMaxX - treeMinX + 5, // Ajouter un espace tampon
+                    minX: treeMinX,
+                    maxX: treeMaxX
+                });
+            });
+            
+            // Deuxième passage pour positionner les arbres avec des espacements dynamiques
+            roots.forEach((root, index) => {
+                // Calculer le décalage vertical en fonction des arbres précédents
+                if (index > 0) {
+                    // Somme des hauteurs des arbres précédents + espacement
+                    verticalOffset += treeSizes[index - 1].height;
+                }
+                
+                // Appliquer la disposition d'arbre à nouveau
                 tree(root);
                 
                 // Décaler les positions verticales pour séparer les arbres
