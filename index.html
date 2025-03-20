@@ -384,13 +384,17 @@
                 });
                 
                 // Préparer les arbres pour l'affichage initial
+                // MODIFICATION ICI: tous les niveaux sont maintenant fermés
                 roots.forEach((root, index) => {
                     root.descendants().forEach((d, i) => {
                         d.id = `tree-${index}-node-${i}`;
                         d._children = d.children;
                         d.treeIndex = index;
-                        // Ouvrir seulement les deux premiers niveaux par défaut
-                        if (d.depth > 1) d.children = null;
+                        
+                        // Modifier cette partie: tous les nœuds sont fermés sauf les racines
+                        if (d.depth > 0) {
+                            d.children = null;
+                        }
                     });
                 });
                 
