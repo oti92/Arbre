@@ -73,7 +73,7 @@
         }
 
         // Dimensions du graphique
-        const width = 1800;
+        const width = 1600;
         const marginTop = 10;
         const marginRight = 10;
         const marginBottom = 10;
@@ -204,7 +204,7 @@
             
             // Mettre à jour les nœuds
             const node = gNode.selectAll("g")
-                .data(allNodes, d => d.id || (d.id = Math.random().toString(36).substr(2, 9)));
+                .data(allNodes, d => d.id || (d.id = Math.random().toString(56).substr(2, 9)));
             
             // Entrer de nouveaux nœuds
             const nodeEnter = node.enter().append("g")
