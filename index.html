@@ -204,7 +204,7 @@
             
             // Mettre à jour les nœuds
             const node = gNode.selectAll("g")
-                .data(allNodes, d => d.id || (d.id = Math.random().toString(56).substr(2, 9)));
+                .data(allNodes, d => d.id || (d.id = Math.random().toString(36).substr(2, 9)));
             
             // Entrer de nouveaux nœuds
             const nodeEnter = node.enter().append("g")
@@ -237,7 +237,7 @@
             nodeEnter.append("circle")
                 .attr("r", 3)
                 .attr("fill", getNodeColor)
-                .attr("stroke-width", 10);
+                .attr("stroke-width", 50);
             
             nodeEnter.append("text")
                 .attr("dy", "0.31em")
