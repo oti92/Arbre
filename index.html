@@ -429,7 +429,7 @@
                     let data;
                     
                     if (file.name.endsWith('.csv')) {
-                        // Traiter le CSV
+                        // Traiter le CSV avec le bon encodage
                         const csvData = e.target.result;
                         debug("Analyse du fichier CSV...");
                         
@@ -441,10 +441,16 @@
                         // Analyser avec le bon séparateur
                         data = d3.dsvFormat(delimiter).parse(csvData);
                     } else {
-                        // Traiter l'Excel
+                        // Traiter l'Excel avec support des caractères spéciaux
                         const arrayBuffer = e.target.result;
                         debug("Analyse du fichier Excel...");
-                        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                        
+                        // Configuration d'encodage pour XLSX
+                        const workbook = XLSX.read(arrayBuffer, {
+                            type: 'array',
+                            raw: true, // Conserver les types de données
+                            cellText: true // Améliore la prise en charge des caractères spéciaux
+                        });
                         
                         // Afficher les noms des feuilles disponibles
                         debug(`Feuilles disponibles: ${workbook.SheetNames.join(', ')}`);
@@ -453,8 +459,11 @@
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         
-                        // Convertir en JSON
-                        data = XLSX.utils.sheet_to_json(worksheet);
+                        // Convertir en JSON avec options d'encodage
+                        data = XLSX.utils.sheet_to_json(worksheet, {
+                            raw: false, // Convertir les cellules en chaînes pour éviter les problèmes d'encodage
+                            defval: "" // Valeur par défaut pour les cellules vides
+                        });
                     }
                     
                     if (data && data.length > 0) {
@@ -480,7 +489,8 @@
             };
             
             if (file.name.endsWith('.csv')) {
-                reader.readAsText(file);
+                // Charger le CSV avec le bon encodage
+                reader.readAsText(file, "UTF-8");
             } else {
                 reader.readAsArrayBuffer(file);
             }
@@ -518,10 +528,10 @@
                 
                 debug(`Utilisation des colonnes: ID=${idColumn}, Name=${nameColumn}, Parent_ID=${parentIdColumn}`);
                 
-                // Nettoyer les données
+                // Nettoyer les données avec support pour caractères spéciaux
                 const cleanData = fileData.map(row => ({
                     id: +row[idColumn],
-                    name: String(row[nameColumn]),
+                    name: String(row[nameColumn]), // Conserver le texte tel quel, y compris accents et emojis
                     parentId: +row[parentIdColumn] || 0
                 }));
                 
@@ -538,53 +548,53 @@
             debug("Chargement des données d'exemple...");
             
             const exampleData = [
-                // Premier arbre
-                { ID: 1, Name: "Vitrage Boite T2", Parent_ID: 0 },
-                { ID: 2, Name: "Materiels", Parent_ID: 1 },
-                { ID: 3, Name: "Grue sur remorque (Klass)", Parent_ID: 2 },
-                { ID: 4, Name: "Palonnier à ventouse (Speeders)", Parent_ID: 2 },
-                { ID: 5, Name: "Plaques de répartition (Speeders)", Parent_ID: 2 },
-                { ID: 6, Name: "Vitrages (REBER)", Parent_ID: 2 },
-                { ID: 7, Name: "Nacelle araignée 27m(Speeders)", Parent_ID: 2 },
+                // Premier arbre avec caractères spéciaux et emojis
+                { ID: 1, Name: "Vitrage Boîte T2 🏢", Parent_ID: 0 },
+                { ID: 2, Name: "Matériels & Équipements", Parent_ID: 1 },
+                { ID: 3, Name: "Grue sur remorque (Kläss)", Parent_ID: 2 },
+                { ID: 4, Name: "Palonnier à ventouse ✨", Parent_ID: 2 },
+                { ID: 5, Name: "Plaques de répartition 🔧", Parent_ID: 2 },
+                { ID: 6, Name: "Vitrages (RÉBÈR)", Parent_ID: 2 },
+                { ID: 7, Name: "Nacelle araignée 27m 🕸️", Parent_ID: 2 },
                 { ID: 8, Name: "Sous-élément 1-A", Parent_ID: 3 },
                 { ID: 9, Name: "Sous-élément 1-B", Parent_ID: 3 },
-                { ID: 10, Name: "Chien", Parent_ID: 4 },
-                { ID: 11, Name: "Chat", Parent_ID: 4 },
+                { ID: 10, Name: "Chien 🐕", Parent_ID: 4 },
+                { ID: 11, Name: "Chat 🐈", Parent_ID: 4 },
                 { ID: 12, Name: "Sous-élément 2-A", Parent_ID: 5 },
                 { ID: 13, Name: "Sous-élément 2-B", Parent_ID: 5 },
                 { ID: 14, Name: "Sous-élément 3-A", Parent_ID: 6 },
                 { ID: 15, Name: "Sous-élément 4-A", Parent_ID: 7 },
                 { ID: 16, Name: "Sous-élément 4-B", Parent_ID: 7 },
                 { ID: 17, Name: "Sous-élément 4-C", Parent_ID: 7 },
-                { ID: 18, Name: "Alain", Parent_ID: 1 },
-                { ID: 19, Name: "1", Parent_ID: 18 },
-                { ID: 20, Name: "2", Parent_ID: 18 },
-                { ID: 21, Name: "Child 2", Parent_ID: 1 },
-                { ID: 22, Name: "Grandchild 1", Parent_ID: 21 },
-                { ID: 23, Name: "Grandchild 2", Parent_ID: 21 },
-                { ID: 24, Name: "alain2", Parent_ID: 1 },
+                { ID: 18, Name: "Alain Délicé", Parent_ID: 1 },
+                { ID: 19, Name: "Première étape ➡️", Parent_ID: 18 },
+                { ID: 20, Name: "Deuxième étape 🔄", Parent_ID: 18 },
+                { ID: 21, Name: "Enfant 2", Parent_ID: 1 },
+                { ID: 22, Name: "Petit-enfant 1 👶", Parent_ID: 21 },
+                { ID: 23, Name: "Petit-enfant 2 👶", Parent_ID: 21 },
+                { ID: 24, Name: "Alain2", Parent_ID: 1 },
                 { ID: 25, Name: "Sous-élément 2-A", Parent_ID: 24 },
                 { ID: 26, Name: "Sous-élément 2-B", Parent_ID: 24 },
                 
-                // Deuxième arbre
-                { ID: 100, Name: "Deuxième Projet", Parent_ID: 0 },
-                { ID: 101, Name: "Équipement", Parent_ID: 100 },
+                // Deuxième arbre avec caractères spéciaux
+                { ID: 100, Name: "Deuxième Projet 📊", Parent_ID: 0 },
+                { ID: 101, Name: "Équipement Spécial", Parent_ID: 100 },
                 { ID: 102, Name: "Personnel", Parent_ID: 100 },
                 { ID: 103, Name: "Matériel A", Parent_ID: 101 },
                 { ID: 104, Name: "Matériel B", Parent_ID: 101 },
-                { ID: 105, Name: "Équipe 1", Parent_ID: 102 },
-                { ID: 106, Name: "Équipe 2", Parent_ID: 102 },
+                { ID: 105, Name: "Équipe 1 👩‍💼👨‍💼", Parent_ID: 102 },
+                { ID: 106, Name: "Équipe 2 👩‍💻👨‍💻", Parent_ID: 102 },
                 
-                // Troisième arbre
-                { ID: 200, Name: "Troisième Projet", Parent_ID: 0 },
-                { ID: 201, Name: "Finances", Parent_ID: 200 },
-                { ID: 202, Name: "Planning", Parent_ID: 200 },
-                { ID: 203, Name: "Partenaires", Parent_ID: 200 },
-                { ID: 204, Name: "Budget", Parent_ID: 201 },
-                { ID: 205, Name: "Investissements", Parent_ID: 201 },
-                { ID: 206, Name: "Phase 1", Parent_ID: 202 },
-                { ID: 207, Name: "Phase 2", Parent_ID: 202 },
-                { ID: 208, Name: "Phase 3", Parent_ID: 202 },
+                // Troisième arbre avec caractères spéciaux
+                { ID: 200, Name: "Troisième Projet 🎯", Parent_ID: 0 },
+                { ID: 201, Name: "Finances 💰", Parent_ID: 200 },
+                { ID: 202, Name: "Planning 📅", Parent_ID: 200 },
+                { ID: 203, Name: "Partenaires 🤝", Parent_ID: 200 },
+                { ID: 204, Name: "Budget €$£", Parent_ID: 201 },
+                { ID: 205, Name: "Investissements 📈", Parent_ID: 201 },
+                { ID: 206, Name: "Phase 1 ◀️", Parent_ID: 202 },
+                { ID: 207, Name: "Phase 2 ⏺️", Parent_ID: 202 },
+                { ID: 208, Name: "Phase 3 ▶️", Parent_ID: 202 },
                 { ID: 209, Name: "Fournisseurs", Parent_ID: 203 },
                 { ID: 210, Name: "Clients", Parent_ID: 203 }
             ];
