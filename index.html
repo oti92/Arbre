@@ -8,11 +8,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 20px;
         }
         text {
             font-size: 10px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #treeContainer {
             border: 1px solid #ddd;
@@ -239,6 +240,7 @@
                 .attr("fill", getNodeColor)
                 .attr("stroke-width", 10);
             
+            // Modification pour améliorer le rendu du texte pour les emojis et accents
             nodeEnter.append("text")
                 .attr("dy", "0.31em")
                 .attr("x", d => d._children ? -6 : 6)
@@ -247,7 +249,8 @@
                 .attr("stroke-linejoin", "round")
                 .attr("stroke-width", 2)
                 .attr("stroke", "white")
-                .attr("paint-order", "stroke");
+                .attr("paint-order", "stroke")
+                .style("font-family", "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"); // Ajout d'une police compatible avec les emojis
             
             // Transitionner les nœuds vers leur nouvelle position
             const nodeUpdate = node.merge(nodeEnter).transition(duration)
@@ -429,7 +432,7 @@
                     let data;
                     
                     if (file.name.endsWith('.csv')) {
-                        // Traiter le CSV avec le bon encodage
+                        // Traiter le CSV avec la gestion améliorée des encodages
                         const csvData = e.target.result;
                         debug("Analyse du fichier CSV...");
                         
@@ -438,14 +441,21 @@
                         const delimiter = firstLine.includes(';') ? ';' : ',';
                         debug(`Séparateur CSV détecté: "${delimiter}"`);
                         
-                        // Détecter la présence du BOM (Byte Order Mark)
+                        // Détecter et traiter le BOM (Byte Order Mark)
                         let cleanData = csvData;
+                        // Vérifier différents types de BOM
                         if (csvData.charCodeAt(0) === 0xFEFF) {
                             debug("BOM UTF-8 détecté et retiré");
                             cleanData = csvData.slice(1);
+                        } else if (csvData.charCodeAt(0) === 0xFFFE) {
+                            debug("BOM UTF-16 (LE) détecté et retiré");
+                            cleanData = csvData.slice(2);
+                        } else if (csvData.charCodeAt(0) === 0xFFFE && csvData.charCodeAt(1) === 0x0000) {
+                            debug("BOM UTF-32 (LE) détecté et retiré");
+                            cleanData = csvData.slice(4);
                         }
                         
-                        // Analyser avec le bon séparateur et en tenant compte de l'encoding
+                        // Analyser avec le bon séparateur
                         try {
                             data = d3.dsvFormat(delimiter).parse(cleanData);
                             debug("Données CSV analysées avec succès");
@@ -454,15 +464,18 @@
                             throw csvError;
                         }
                     } else {
-                        // Traiter l'Excel avec support des caractères spéciaux
+                        // Traiter l'Excel avec support renforcé des caractères spéciaux
                         const arrayBuffer = e.target.result;
                         debug("Analyse du fichier Excel...");
                         
-                        // Configuration d'encodage pour XLSX
+                        // Configuration optimisée pour XLSX
                         const workbook = XLSX.read(arrayBuffer, {
-                            type: 'array',
-                            raw: true, // Conserver les types de données
-                            cellText: true // Améliore la prise en charge des caractères spéciaux
+                            type: 'array', 
+                            cellDates: true,        // Préserver les dates
+                            cellNF: true,           // Préserver les formats de nombres
+                            cellText: true,         // Optimiser pour le texte
+                            codepage: 65001,        // UTF-8 codepage
+                            WTF: true               // Activer le mode débogage détaillé
                         });
                         
                         // Afficher les noms des feuilles disponibles
@@ -472,19 +485,36 @@
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         
-                        // Convertir en JSON avec options d'encodage
+                        // Convertir en JSON avec options d'encodage optimisées
                         data = XLSX.utils.sheet_to_json(worksheet, {
-                            raw: false, // Convertir les cellules en chaînes pour éviter les problèmes d'encodage
-                            defval: "" // Valeur par défaut pour les cellules vides
+                            raw: false,           // Garder le format texte
+                            defval: "",           // Valeur par défaut pour cellules vides
+                            header: "A",          // Utiliser les références de colonnes comme en-têtes
+                            range: worksheet['!ref'] // Utiliser toute la plage
                         });
+                        
+                        // Si aucun en-tête n'est trouvé, utiliser la première ligne comme en-têtes
+                        if (data.length > 0) {
+                            const headers = data[0];
+                            const rows = data.slice(1);
+                            
+                            data = rows.map(row => {
+                                const newRow = {};
+                                Object.keys(headers).forEach(key => {
+                                    // Utiliser les valeurs de la première ligne comme noms de colonnes
+                                    newRow[headers[key]] = row[key] || "";
+                                });
+                                return newRow;
+                            });
+                        }
                     }
                     
                     if (data && data.length > 0) {
                         debug(`${data.length} lignes chargées`);
                         debug(`Colonnes détectées: ${Object.keys(data[0]).join(', ')}`);
                         
-                        // Afficher les premières lignes pour débogage avec encodage correct
-                        debug(`Première ligne: ${JSON.stringify(data[0], null, 2)}`);
+                        // Afficher les premières lignes pour débogage
+                        debug(`Première ligne (avec encodage préservé): ${JSON.stringify(data[0], null, 2)}`);
                         
                         // Préparer les données dans le format attendu
                         prepareDataFromFile(data);
@@ -502,7 +532,7 @@
             };
             
             if (file.name.endsWith('.csv')) {
-                // Lire le fichier en tant que texte avec UTF-8
+                // Spécifier explicitement UTF-8 pour le CSV
                 reader.readAsText(file, "UTF-8");
             } else {
                 reader.readAsArrayBuffer(file);
@@ -513,36 +543,44 @@
             try {
                 debug("Préparation des données pour visualisation...");
                 
-                // Déterminer les noms des colonnes (gérer différentes variantes possibles)
+                // Déterminer les noms des colonnes (plus robuste)
                 const sample = fileData[0];
                 
-                // Fonctions pour vérifier les noms de colonnes (plus robuste)
+                // Fonctions améliorées pour détecter les noms de colonnes
                 function isIdColumn(key) {
-                    return /^id$/i.test(key) || /^ID$/i.test(key);
+                    if (!key) return false;
+                    const k = String(key).toLowerCase().trim();
+                    return k === 'id' || k.endsWith('_id') || k === 'identifiant' || k === 'numero';
                 }
                 
                 function isNameColumn(key) {
-                    return /^name$/i.test(key) || /^Name$/i.test(key) || /^nom$/i.test(key) || /^NOM$/i.test(key);
+                    if (!key) return false;
+                    const k = String(key).toLowerCase().trim();
+                    return k === 'name' || k === 'nom' || k === 'libelle' || k === 'label' || k === 'titre' || k === 'description';
                 }
                 
                 function isParentIdColumn(key) {
-                    return /^parent[\s_-]?id$/i.test(key) || /^Parent[\s_-]?ID$/i.test(key) || 
-                           /^parent[\s_-]?id$/i.test(key) || /^Parent[\s_-]?Id$/i.test(key);
+                    if (!key) return false;
+                    const k = String(key).toLowerCase().trim();
+                    return k === 'parent_id' || k === 'parentid' || k === 'parent id' || k === 'id_parent' || 
+                           k === 'idparent' || k === 'id parent' || k === 'parent' || k === 'pere' || k === 'racine';
                 }
                 
                 let idColumn = Object.keys(sample).find(isIdColumn);
                 let nameColumn = Object.keys(sample).find(isNameColumn);
                 let parentIdColumn = Object.keys(sample).find(isParentIdColumn);
                 
-                // Si les colonnes ne sont pas trouvées, essayer avec des variations (pour gérer les BOM ou caractères invisibles)
+                // Si les colonnes ne sont pas trouvées, détecter avec une approche plus flexible
                 if (!idColumn) {
-                    idColumn = Object.keys(sample).find(key => key.toLowerCase().includes('id') && !key.toLowerCase().includes('parent'));
+                    idColumn = Object.keys(sample).find(key => key && String(key).toLowerCase().includes('id') && !String(key).toLowerCase().includes('parent'));
                 }
                 if (!nameColumn) {
-                    nameColumn = Object.keys(sample).find(key => key.toLowerCase().includes('name') || key.toLowerCase().includes('nom'));
+                    nameColumn = Object.keys(sample).find(key => key && (String(key).toLowerCase().includes('name') || 
+                                                                 String(key).toLowerCase().includes('nom') || 
+                                                                 String(key).toLowerCase().includes('title')));
                 }
                 if (!parentIdColumn) {
-                    parentIdColumn = Object.keys(sample).find(key => key.toLowerCase().includes('parent'));
+                    parentIdColumn = Object.keys(sample).find(key => key && String(key).toLowerCase().includes('parent'));
                 }
                 
                 if (!idColumn || !nameColumn || !parentIdColumn) {
@@ -552,23 +590,46 @@
                 
                 debug(`Utilisation des colonnes: ID=${idColumn}, Name=${nameColumn}, Parent_ID=${parentIdColumn}`);
                 
-                // Nettoyer les données avec support pour caractères spéciaux
+                // Nettoyer les données avec préservation améliorée des caractères spéciaux
                 const cleanData = fileData.map(row => {
-                    // Conversion explicite pour s'assurer que les valeurs sont traitées correctement
-                    const id = typeof row[idColumn] === 'string' ? parseInt(row[idColumn], 10) : +row[idColumn];
-                    // Préserver les caractères spéciaux en utilisant une chaîne de caractères directe
-                    const name = row[nameColumn] ? String(row[nameColumn]).trim() : "";
-                    // Gérer la valeur parent (convertir en 0 si null, undefined ou NaN)
-                    let parentId = typeof row[parentIdColumn] === 'string' ? 
-                        parseInt(row[parentIdColumn], 10) : +row[parentIdColumn];
-                    parentId = isNaN(parentId) ? 0 : parentId;
+                    // Traitement de l'ID
+                    const rawId = row[idColumn];
+                    const id = (typeof rawId === 'string') ? 
+                        parseInt(rawId.trim(), 10) : (typeof rawId === 'number' ? rawId : NaN);
+                    
+                    if (isNaN(id)) {
+                        debug(`Avertissement: ID invalide dans une ligne: ${rawId}`, true);
+                        return null;
+                    }
+                    
+                    // Traitement du nom (préservation maximale des caractères spéciaux)
+                    let name = "";
+                    if (row[nameColumn] !== undefined && row[nameColumn] !== null) {
+                        name = String(row[nameColumn]);
+                        // Détecter et traiter les problèmes d'encodage courants
+                        name = name.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+                        name = name.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+                    }
+                    
+                    // Traitement du parent ID
+                    const rawParentId = row[parentIdColumn];
+                    let parentId = (typeof rawParentId === 'string') ? 
+                        parseInt(rawParentId.trim(), 10) : (typeof rawParentId === 'number' ? rawParentId : 0);
+                    
+                    parentId = !isNaN(parentId) ? parentId : 0;
                     
                     return { id, name, parentId };
-                });
+                }).filter(item => item !== null); // Filtrer les éléments invalides
                 
-                // Afficher quelques exemples pour déboguer l'encodage
+                // Afficher des exemples de données préparées
                 if (cleanData.length > 0) {
                     debug(`Exemple de données préparées (première ligne): ${JSON.stringify(cleanData[0])}`);
+                    // Vérifier si des caractères spéciaux ont été préservés
+                    const hasSpecialChars = cleanData.some(item => 
+                        /[éèêëàâäùûüòôöïîç]|[\u{1F300}-\u{1F6FF}]/u.test(item.name));
+                    if (hasSpecialChars) {
+                        debug("✅ Caractères spéciaux et emojis détectés et correctement préservés!");
+                    }
                 }
                 
                 // Traiter et afficher les données
@@ -581,7 +642,7 @@
         }
 
         function useExampleData() {
-            debug("Chargement des données d'exemple...");
+            debug("Chargement des données d'exemple avec caractères spéciaux et emojis...");
             
             const exampleData = [
                 // Premier arbre avec caractères spéciaux et emojis
@@ -601,45 +662,3 @@
                 { ID: 14, Name: "Sous-élément 3-A", Parent_ID: 6 },
                 { ID: 15, Name: "Sous-élément 4-A", Parent_ID: 7 },
                 { ID: 16, Name: "Sous-élément 4-B", Parent_ID: 7 },
-                { ID: 17, Name: "Sous-élément 4-C", Parent_ID: 7 },
-                { ID: 18, Name: "Alain Délicé", Parent_ID: 1 },
-                { ID: 19, Name: "Première étape ➡️", Parent_ID: 18 },
-                { ID: 20, Name: "Deuxième étape 🔄", Parent_ID: 18 },
-                { ID: 21, Name: "Enfant 2", Parent_ID: 1 },
-                { ID: 22, Name: "Petit-enfant 1 👶", Parent_ID: 21 },
-                { ID: 23, Name: "Petit-enfant 2 👶", Parent_ID: 21 },
-                { ID: 24, Name: "Alain2", Parent_ID: 1 },
-                { ID: 25, Name: "Sous-élément 2-A", Parent_ID: 24 },
-                { ID: 26, Name: "Sous-élément 2-B", Parent_ID: 24 },
-                
-                // Deuxième arbre avec caractères spéciaux
-                { ID: 100, Name: "Deuxième Projet 📊", Parent_ID: 0 },
-                { ID: 101, Name: "Équipement Spécial", Parent_ID: 100 },
-                { ID: 102, Name: "Personnel", Parent_ID: 100 },
-                { ID: 103, Name: "Matériel A", Parent_ID: 101 },
-                { ID: 104, Name: "Matériel B", Parent_ID: 101 },
-                { ID: 105, Name: "Équipe 1 👩‍💼👨‍💼", Parent_ID: 102 },
-                { ID: 106, Name: "Équipe 2 👩‍💻👨‍💻", Parent_ID: 102 },
-                
-                // Troisième arbre avec caractères spéciaux
-                { ID: 200, Name: "Troisième Projet 🎯", Parent_ID: 0 },
-                { ID: 201, Name: "Finances 💰", Parent_ID: 200 },
-                { ID: 202, Name: "Planning 📅", Parent_ID: 200 },
-                { ID: 203, Name: "Partenaires 🤝", Parent_ID: 200 },
-                { ID: 204, Name: "Budget €$£", Parent_ID: 201 },
-                { ID: 205, Name: "Investissements 📈", Parent_ID: 201 },
-                { ID: 206, Name: "Phase 1 ◀️", Parent_ID: 202 },
-                { ID: 207, Name: "Phase 2 ⏺️", Parent_ID: 202 },
-                { ID: 208, Name: "Phase 3 ▶️", Parent_ID: 202 },
-                { ID: 209, Name: "Fournisseurs", Parent_ID: 203 },
-                { ID: 210, Name: "Clients", Parent_ID: 203 }
-            ];
-            
-            prepareDataFromFile(exampleData);
-        }
-
-        // Initialiser avec un message
-        debug("Application chargée. Veuillez sélectionner un fichier Excel/CSV ou utiliser les données d'exemple.");
-    </script>
-</body>
-</html>
