@@ -438,8 +438,21 @@
                         const delimiter = firstLine.includes(';') ? ';' : ',';
                         debug(`Séparateur CSV détecté: "${delimiter}"`);
                         
-                        // Analyser avec le bon séparateur
-                        data = d3.dsvFormat(delimiter).parse(csvData);
+                        // Détecter la présence du BOM (Byte Order Mark)
+                        let cleanData = csvData;
+                        if (csvData.charCodeAt(0) === 0xFEFF) {
+                            debug("BOM UTF-8 détecté et retiré");
+                            cleanData = csvData.slice(1);
+                        }
+                        
+                        // Analyser avec le bon séparateur et en tenant compte de l'encoding
+                        try {
+                            data = d3.dsvFormat(delimiter).parse(cleanData);
+                            debug("Données CSV analysées avec succès");
+                        } catch (csvError) {
+                            debug(`Erreur lors de l'analyse CSV: ${csvError.message}`, true);
+                            throw csvError;
+                        }
                     } else {
                         // Traiter l'Excel avec support des caractères spéciaux
                         const arrayBuffer = e.target.result;
@@ -470,8 +483,8 @@
                         debug(`${data.length} lignes chargées`);
                         debug(`Colonnes détectées: ${Object.keys(data[0]).join(', ')}`);
                         
-                        // Afficher les premières lignes pour débogage
-                        debug(`Première ligne: ${JSON.stringify(data[0])}`);
+                        // Afficher les premières lignes pour débogage avec encodage correct
+                        debug(`Première ligne: ${JSON.stringify(data[0], null, 2)}`);
                         
                         // Préparer les données dans le format attendu
                         prepareDataFromFile(data);
@@ -489,7 +502,7 @@
             };
             
             if (file.name.endsWith('.csv')) {
-                // Charger le CSV avec le bon encodage
+                // Lire le fichier en tant que texte avec UTF-8
                 reader.readAsText(file, "UTF-8");
             } else {
                 reader.readAsArrayBuffer(file);
@@ -503,7 +516,7 @@
                 // Déterminer les noms des colonnes (gérer différentes variantes possibles)
                 const sample = fileData[0];
                 
-                // Fonctions pour vérifier les noms de colonnes
+                // Fonctions pour vérifier les noms de colonnes (plus robuste)
                 function isIdColumn(key) {
                     return /^id$/i.test(key) || /^ID$/i.test(key);
                 }
@@ -517,9 +530,20 @@
                            /^parent[\s_-]?id$/i.test(key) || /^Parent[\s_-]?Id$/i.test(key);
                 }
                 
-                const idColumn = Object.keys(sample).find(isIdColumn);
-                const nameColumn = Object.keys(sample).find(isNameColumn);
-                const parentIdColumn = Object.keys(sample).find(isParentIdColumn);
+                let idColumn = Object.keys(sample).find(isIdColumn);
+                let nameColumn = Object.keys(sample).find(isNameColumn);
+                let parentIdColumn = Object.keys(sample).find(isParentIdColumn);
+                
+                // Si les colonnes ne sont pas trouvées, essayer avec des variations (pour gérer les BOM ou caractères invisibles)
+                if (!idColumn) {
+                    idColumn = Object.keys(sample).find(key => key.toLowerCase().includes('id') && !key.toLowerCase().includes('parent'));
+                }
+                if (!nameColumn) {
+                    nameColumn = Object.keys(sample).find(key => key.toLowerCase().includes('name') || key.toLowerCase().includes('nom'));
+                }
+                if (!parentIdColumn) {
+                    parentIdColumn = Object.keys(sample).find(key => key.toLowerCase().includes('parent'));
+                }
                 
                 if (!idColumn || !nameColumn || !parentIdColumn) {
                     debug(`Colonnes requises non trouvées. Utilisez ID, Name et Parent_ID. Colonnes actuelles: ${Object.keys(sample).join(', ')}`, true);
@@ -529,11 +553,23 @@
                 debug(`Utilisation des colonnes: ID=${idColumn}, Name=${nameColumn}, Parent_ID=${parentIdColumn}`);
                 
                 // Nettoyer les données avec support pour caractères spéciaux
-                const cleanData = fileData.map(row => ({
-                    id: +row[idColumn],
-                    name: String(row[nameColumn]), // Conserver le texte tel quel, y compris accents et emojis
-                    parentId: +row[parentIdColumn] || 0
-                }));
+                const cleanData = fileData.map(row => {
+                    // Conversion explicite pour s'assurer que les valeurs sont traitées correctement
+                    const id = typeof row[idColumn] === 'string' ? parseInt(row[idColumn], 10) : +row[idColumn];
+                    // Préserver les caractères spéciaux en utilisant une chaîne de caractères directe
+                    const name = row[nameColumn] ? String(row[nameColumn]).trim() : "";
+                    // Gérer la valeur parent (convertir en 0 si null, undefined ou NaN)
+                    let parentId = typeof row[parentIdColumn] === 'string' ? 
+                        parseInt(row[parentIdColumn], 10) : +row[parentIdColumn];
+                    parentId = isNaN(parentId) ? 0 : parentId;
+                    
+                    return { id, name, parentId };
+                });
+                
+                // Afficher quelques exemples pour déboguer l'encodage
+                if (cleanData.length > 0) {
+                    debug(`Exemple de données préparées (première ligne): ${JSON.stringify(cleanData[0])}`);
+                }
                 
                 // Traiter et afficher les données
                 processLoadedData(cleanData);
