@@ -1,0 +1,99 @@
+﻿ID;Name;Parent_Id
+1;Arbre de connaissance;0
+2;Loueur de machine;1
+3;Speeder;2
+4;Aerial;2
+5;Best location;2
+6;Huet Location;2
+7;Aprolis location;2
+8;Jekko;2
+9;Alex technico commercial;3
+10;06 10 83 62 71;9
+11;Ne travail plus avec;5
+12;Giani ;4
+13;07 85 73 24 04;12
+14;Freitas(PPM);2
+15;GK Technique;2
+16;Klass;2
+17;Dominique Luczyk;16
+18;06 49 93 33 90;17
+19;Xavier Le Lay;15
+20;06 03 92 84 77;19
+21;Vitrages;1
+22;Reber;21
+23;Mr Troadec;22
+24;06 24 27 64 41;23
+25;Vetrotec (saint gobain);21
+26;Saint gobain;21
+27;Serrurerie;1
+28;Asa metal;27
+29;Marini;27
+30;Abdoul;29
+31;01 49 36 28 19;30
+39;Membrane EPDM colle;1
+37;Illbruck;39
+38;Obex;39
+32;Pepe ;28
+33;06 61 08 61 40;32
+34;Desenfumage;1
+35;Kingspan;34
+36;Comtra;34
+40;Dania;21
+41;Eurovitrage;21
+42;Luxo Benne;1
+43;Commercial;42
+44;01 46 80 34 28;43
+45;Christophe;3
+46;07 89 40 80 84;45
+47;Isolation;1
+48;Matisol;47
+49;Tremco;39
+50;Protection facade;1
+51;PROTECTA SCREEN ;50
+52;KIMPRO (Bache protection de chantier);50
+53;Acoustifrance ;47
+54;Portes;1
+55;Adeos portes ENEDIS;54
+56;Austral;27
+57;Quincailleries;1
+58;BAFA (Fournisseur visserie);57
+59;Wurth;57
+60;Foussier;57
+61;Castelein Sealants ;39
+62;Protection chantier;1
+63;Barriere de chantier;62
+64;ID ACIER PROTECTION;63
+65;Craneco;2
+66;Dufour PPM;2
+67;Homebleue nettoyage;100
+68;Pas bon;67
+69;Etanco (Clou isolation);47
+70;Lada Phonsavanh;69
+71;06 11 31 49 67;70
+72;Standars;22
+73;01 86 23 00 20;72
+74;Portes automatiques;54
+75;Geze;74
+76;Echafaudage;2
+400;Poseur;0
+401;SBM;400
+402;LABALU;400
+403;LNW;400
+404;EDIL MECANIKA;400
+405;LABALU;400
+406;GPF;400
+407;SNT;400
+408;SNP ALU;400
+300;Geometre;0
+301;GTI;300
+302;Laurent Charbonnier;301
+303;06 82 90 29 42;302
+304;Alexandre Lopez;301
+305;06 84 09 30 42 ;304
+306;TEG;300
+307;Laurent Verpillat;306
+308;06 20 60 16 81;307
+100;Nettoyeur de facade;0
+101;Coulibaly;100
+102;Mohamed;101
+103;06 84 12 80 62;102
